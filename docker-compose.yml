@@ -1,30 +1,67 @@
 version: '3.7'
 
 services:
-  proxy:
-    image: nginx:alpine
-    container_name: proxy
-    ports:
-      - '80:80'
+#  proxy:
+#    image: nginx:alpine
+#    container_name: proxy
+#    ports:
+#      - '80:80'
+#    volumes:
+#      - ./nginx.conf:/etc/nginx/nginx.conf
+#    restart: 'unless-stopped'
+#    networks:
+#      - backend
+
+#  server:
+#    build:
+#      context: ./
+#      target: development-build-stage
+#      dockerfile: Dockerfile
+#    container_name: server
+#    ports:
+#      - '3000:3000'
+#    volumes:
+#      - ./:/app
+#      - /app/node_modules
+#    restart: 'unless-stopped'
+#    networks:
+#      - backend
+
+  database:
+    image: mongo
+    hostname: database
+    container_name: database
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    restart: 'unless-stopped'
-    networks:
-      - backend
-  server:
-    build:
-      context: ./
-      target: development-build-stage
-      dockerfile: Dockerfile
-    container_name: server
+      - ./databasedump:/databasedump
     ports:
-      - '3000:3000'
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+
+  databasesetup: # Is used to setup database (load dump from file system)
+    image: mongo
+    links:
+      - database
     volumes:
-      - ./:/app
-      - /app/node_modules
-    restart: 'unless-stopped'
-    networks:
-      - backend
+      - ./databasedump:/databasedump
+    depends_on:
+      - database
+    restart: "no"
+    command: mongorestore --uri=mongodb://root:root@database:27017/?authSource=admin -d smarthome --dir /databasedump/smarthome
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    hostname: mosquitto
+    container_name: mosquitto
+    expose:
+      - '1883'
+      - '9001'
+    ports:
+      - '1883:1883'
+      - '9001:9001'
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
 
 networks:
   backend:
@@ -33,3 +70,7 @@ networks:
 volumes:
   data:
     driver: local
+
+# Commands for mongo db
+# mongodump --uri=mongodb://root:root@database:27017/?authSource=admin -d smarthome -o /databasedump
+# mongorestore --uri=mongodb://root:root@database:27017/?authSource=admin -d smarthome --dir /databasedump/smarthome

@@ -15,6 +15,7 @@
     "deploy:dev": "pm2 start ecosystem.config.js --only dev"
   },
   "dependencies": {
+    "@typegoose/typegoose": "^8.2.0",
     "bcrypt": "^5.0.1",
     "class-transformer": "^0.4.0",
     "class-validator": "^0.13.1",
@@ -30,7 +31,9 @@
     "hpp": "^0.2.3",
     "jest": "^27.0.6",
     "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.13.8",
     "morgan": "^1.10.0",
+    "mqtt": "^4.2.8",
     "pm2": "^5.1.0",
     "swagger-jsdoc": "^6.0.0",
     "swagger-ui-express": "^4.1.6",

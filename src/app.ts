@@ -8,11 +8,13 @@ import express from 'express';
 import helmet from 'helmet';
 import hpp from 'hpp';
 import morgan from 'morgan';
+import * as mqtt from "mqtt";
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { Routes } from '@interfaces/routes.interface';
 import errorMiddleware from '@middlewares/error.middleware';
 import { logger, stream } from '@utils/logger';
+import { mongoose } from "@typegoose/typegoose";
 
 class App {
   public app: express.Application;
@@ -23,11 +25,38 @@ class App {
     this.app = express();
     this.port = process.env.PORT || 3000;
     this.env = process.env.NODE_ENV || 'development';
+    mongoose.set('useCreateIndex', true);
 
-    this.initializeMiddlewares();
-    this.initializeRoutes(routes);
-    this.initializeSwagger();
-    this.initializeErrorHandling();
+    this.initDatabase().then(() => {
+      // If database is not available nothing happens
+      this.initializeMiddlewares();
+      this.initializeRoutes(routes);
+      this.initializeSwagger();
+      this.initializeErrorHandling();
+    });
+
+
+    /*
+      const client  = mqtt.connect('mqtt://192.168.0.100', { port: 1883 });
+      client.on("connect",() => {
+        console.log("connected");
+      });
+
+      client.on("error",(error) =>{ console.log("Can't connect"+error)});
+
+      client.subscribe("stat/tasmota_E36E04/RESULT");
+      client.subscribe("stat/tasmota_E36E04/STATUS");
+
+      client.on('message', function (topic, message) {
+        // message is Buffer
+        logger.info(topic);
+        logger.info(message);
+      });
+
+      client.publish("cmnd/tasmota_E36E04/POWER", 'ON');
+      client.publish("cmnd/tasmota_E36E04/STATUS", '');
+    }
+    */
   }
 
   public listen() {
@@ -43,7 +72,15 @@ class App {
     return this.app;
   }
 
-  private initializeMiddlewares() {
+  private async initDatabase(): Promise<void> {
+    await mongoose.connect('mongodb://root:root@localhost:27017/', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      dbName: 'smarthome'
+    });
+  }
+
+  private initializeMiddlewares(): void {
     this.app.use(morgan(config.get('log.format'), { stream }));
     this.app.use(cors({ origin: config.get('cors.origin'), credentials: config.get('cors.credentials') }));
     this.app.use(hpp());
@@ -54,13 +91,13 @@ class App {
     this.app.use(cookieParser());
   }
 
-  private initializeRoutes(routes: Routes[]) {
+  private initializeRoutes(routes: Routes[]): void {
     routes.forEach(route => {
       this.app.use('/', route.router);
     });
   }
 
-  private initializeSwagger() {
+  private initializeSwagger(): void {
     const options = {
       swaggerDefinition: {
         info: {
@@ -76,7 +113,7 @@ class App {
     this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
   }
 
-  private initializeErrorHandling() {
+  private initializeErrorHandling(): void {
     this.app.use(errorMiddleware);
   }
 }
